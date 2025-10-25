@@ -52,7 +52,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
         <div className="flex-1 relative">
           <Image
-            src="/assets/images/dashboard.png"
+            src="/assets/dashboard.png"
             alt="Dashboard Preview"
             width={1440}
             height={1150}
