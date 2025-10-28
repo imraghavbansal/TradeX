@@ -1,9 +1,29 @@
 declare global {
+    namespace NodeJS {
+        interface ProcessEnv {
+            MONGODB_URI?: string;
+            BETTER_AUTH_SECRET?: string;
+            BETTER_AUTH_URL?: string;
+            NEXT_PUBLIC_FINNHUB_API_KEY?: string;
+            FINNHUB_API_KEY?: string;
+            GEMINI_API_KEY?: string;
+            NODEMAILER_EMAIL?: string;
+            NODEMAILER_PASSWORD?: string;
+        }
+    }
+
+    var mongooseCache: {
+		conn: import('mongoose').Mongoose | null;
+		promise: Promise<import('mongoose').Mongoose> | null;
+    } | undefined;
+
     type SignInFormData = {
         email: string;
         password: string;
     };
 
+
+    
     type SignUpFormData = {
         fullName: string;
         email: string;
@@ -55,12 +75,6 @@ declare global {
         href: string;
     };
 
-    type SearchCommandProps = {
-        renderAs?: 'button' | 'text';
-        label?: string;
-        initialStocks: StockWithWatchlistStatus[];
-    };
-
     type WelcomeEmailData = {
         email: string;
         name: string;
@@ -71,6 +85,12 @@ declare global {
         id: string;
         name: string;
         email: string;
+    };
+
+    type UserForNewsEmail = {
+        id: string;
+        email: string;
+        name: string;
     };
 
     type Stock = {
@@ -118,7 +138,9 @@ declare global {
 
     type ProfileData = {
         name?: string;
-        marketCapitalization?: number;
+		marketCapitalization?: number;
+		ticker?: string;
+		exchange?: string;
     };
 
     type FinancialsData = {
@@ -172,9 +194,11 @@ declare global {
         open?: boolean;
         setOpen?: (open: boolean) => void;
         renderAs?: 'button' | 'text';
+        label?: string;
         buttonLabel?: string;
         buttonVariant?: 'primary' | 'secondary';
         className?: string;
+        initialStocks?: StockWithWatchlistStatus[];
     };
 
     type AlertData = {

@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
 const MONGODB_URI = process.env.MONGODB_URI ;
 
-declare global {
-  var mongooseCache: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
+declare let global: typeof globalThis & {
+  mongooseCache?: {
+	conn: mongoose.Mongoose | null;
+	promise: Promise<mongoose.Mongoose> | null;
   };
-}
+};
 
 let cached = global.mongooseCache;
 if (!cached) {
