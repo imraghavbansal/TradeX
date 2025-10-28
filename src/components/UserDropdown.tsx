@@ -17,8 +17,8 @@ import { signOut } from "@/lib/actions/auth.actions";
 const UserDropdown = ({user}: {user:User}) => {
     const router = useRouter();
     const handleLogout = async() => {
-      await signOut
-        router.push("/sign-in");
+      await signOut();
+      router.replace("/sign-in");
     }
   return (
     <DropdownMenu>
