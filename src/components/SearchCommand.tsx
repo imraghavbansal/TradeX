@@ -5,7 +5,6 @@ import { CommandDialog, CommandEmpty, CommandInput, CommandList } from "@/compon
 import {Button} from "@/components/ui/button";
 import {Loader2,  TrendingUp} from "lucide-react";
 import Link from "next/link";
-import {searchStocks} from "@/lib/actions/finnhub.actions";
 import {useDebounce} from "@/hooks/useDebounce";
 
 export default function SearchCommand({ renderAs = 'button', label = 'Add stock', initialStocks = [] }: SearchCommandProps) {
@@ -33,7 +32,7 @@ export default function SearchCommand({ renderAs = 'button', label = 'Add stock'
 
     setLoading(true)
     try {
-        const results = await searchStocks(searchTerm.trim());
+        const results = await fetchStocks(searchTerm.trim());
         setStocks(results);
     } catch {
       setStocks([])
@@ -46,7 +45,7 @@ export default function SearchCommand({ renderAs = 'button', label = 'Add stock'
 
   useEffect(() => {
     debouncedSearch();
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
   // Fetch an initial set of popular stocks when the command mounts
   // This ensures the list isn't empty before the user types anything
@@ -56,7 +55,7 @@ export default function SearchCommand({ renderAs = 'button', label = 'Add stock'
       if (initialStocks && initialStocks.length > 0) return; // already provided
       setLoading(true);
       try {
-        const results = await searchStocks("");
+        const results = await fetchStocks("");
         if (!cancelled) setStocks(results);
       } catch {
         if (!cancelled) setStocks([]);
@@ -66,7 +65,19 @@ export default function SearchCommand({ renderAs = 'button', label = 'Add stock'
     };
     loadInitial();
     return () => { cancelled = true; };
-  }, []);
+  }, [initialStocks]);
+
+  // Client-side wrapper to call our API route which invokes the server-side search
+  async function fetchStocks(q: string): Promise<StockWithWatchlistStatus[]> {
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q || '')}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data as StockWithWatchlistStatus[];
+    } catch {
+      return [];
+    }
+  }
 
   const handleSelectStock = () => {
     setOpen(false);
@@ -103,7 +114,7 @@ export default function SearchCommand({ renderAs = 'button', label = 'Add stock'
                 {isSearchMode ? 'Search results' : 'Popular stocks'}
                 {` `}({displayStocks?.length || 0})
               </li>
-              {displayStocks?.map((stock, i) => (
+              {displayStocks?.map((stock) => (
                   <li key={stock.symbol} className="search-item">
                     <Link
                         href={`/stocks/${stock.symbol}`}
