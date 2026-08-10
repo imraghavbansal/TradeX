@@ -5,12 +5,22 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 const Layout = async ({ children }: { children: React.ReactNode }) => {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  })
-if(session?.user) {
-  redirect('/');
-}
+  // redirect() throws internally, so it must live outside the try/catch below —
+  // otherwise our own catch swallows it and an already-logged-in user visiting
+  // /sign-in would just see the sign-in page instead of being redirected home.
+  let session = null;
+  try {
+    session = await auth.api.getSession({
+      headers: await headers()
+    })
+  } catch {
+    // If auth fails, just continue to auth page
+    console.warn('⚠️ Auth unavailable, showing login page');
+  }
+
+  if (session?.user) {
+    redirect('/');
+  }
 
   return (
     <main className="auth-layout">

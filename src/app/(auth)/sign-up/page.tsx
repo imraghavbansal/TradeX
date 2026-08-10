@@ -43,7 +43,13 @@ const SignUp = () => {
   const onSubmit = async (data: SignUpFormData) => {
     try {
       const result = await signUpWithEmail(data);
-      if (result.success) router.push('/');
+      if (result.success) {
+        router.push('/');
+      } else {
+        toast.error("Sign Up Failed", {
+          description: result.error || 'An unexpected error occurred. Please try again.',
+        });
+      }
     } catch (error) {
       toast.error("Sign Up Failed", {
         description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',

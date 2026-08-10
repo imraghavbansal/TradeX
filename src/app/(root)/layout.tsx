@@ -4,11 +4,22 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const layout = async ({ children }: { children: React.ReactNode }) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  // redirect() throws internally, so both calls below live outside the try/catch
+  // — otherwise the "no session" redirect gets caught by our own catch, logged
+  // as a fake "Auth session error" on every normal unauthenticated visit, then
+  // thrown again from the catch block.
+  let session;
+  try {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    })
+  } catch (error) {
+    console.error('Auth session error:', error);
+    redirect('/sign-in');
+  }
+
   if (!session?.user) redirect('/sign-in');
-  
+
   const user = {
     id: session.user.id,
     email: session.user.email,

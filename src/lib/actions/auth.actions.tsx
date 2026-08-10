@@ -12,8 +12,12 @@ export const signUpWithEmail = async ({email, password, fullName, country, inves
                 name: fullName,
             }
         })
-        if(response) {
-            await inngest.send({
+        if (response) {
+            // Fire-and-forget: the welcome-email event is a side effect, not part of
+            // the critical signup path, so it shouldn't block the response.
+            // `emailAndPassword.autoSignIn` on the auth config already establishes the
+            // session on signUpEmail — no need for a second, redundant signInEmail call.
+            inngest.send({
                 name: 'app/user.created',
                 data: {
                     email: email,
@@ -22,8 +26,10 @@ export const signUpWithEmail = async ({email, password, fullName, country, inves
                     investmentGoals: investmentGoals,
                     riskTolerance: riskTolerance,
                     preferredIndustry: preferredIndustry,
-            }
-        })
+                },
+            }).catch((ingErr) => {
+                console.warn('Inngest event failed (skipping):', ingErr);
+            });
         }
         return { success: true, data: response };
 } catch (error) {
@@ -52,6 +58,7 @@ export const signInWithEmail = async ({email, password}: SignInFormData) => {
 export const signOut = async () => {
     try {
         await auth.api.signOut({headers: await headers()});
+        return { success: true };
     }
 
     catch (error) {
