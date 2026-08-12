@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local dev database (mongodb-memory-server)
+/.local-mongo-data
+
 # next.js
 /.next/
 /out/
