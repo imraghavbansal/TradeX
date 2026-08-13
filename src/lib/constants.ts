@@ -170,8 +170,58 @@ export const MARKET_DATA_WIDGET_CONFIG = {
     ],
 };
 
+// Finnhub encodes non-US exchanges as a suffix (e.g. "STMPA.PA" for Euronext
+// Paris), but TradingView's widgets expect their own EXCHANGE:TICKER
+// notation. Passing the raw Finnhub symbol through unmapped means
+// TradingView can't resolve it — it either shows "No data here yet" or
+// falls back to a generic CFD broker feed instead of the real listing.
+const FINNHUB_SUFFIX_TO_TRADINGVIEW_EXCHANGE: Record<string, string> = {
+    PA: 'EURONEXT',
+    AS: 'EURONEXT',
+    BR: 'EURONEXT',
+    L: 'LSE',
+    DE: 'XETR',
+    SW: 'SWX',
+    T: 'TSE',
+    HK: 'HKEX',
+    SS: 'SSE',
+    SZ: 'SZSE',
+    TO: 'TSX',
+    AX: 'ASX',
+    MI: 'MIL',
+    MC: 'BME',
+    SI: 'SGX',
+    KS: 'KRX',
+};
+
+export const toTradingViewSymbol = (symbol: string): string => {
+    const upper = symbol.toUpperCase();
+    const dotIndex = upper.lastIndexOf('.');
+    if (dotIndex === -1) return upper;
+
+    const ticker = upper.slice(0, dotIndex);
+    const suffix = upper.slice(dotIndex + 1);
+    const exchange = FINNHUB_SUFFIX_TO_TRADINGVIEW_EXCHANGE[suffix];
+    return exchange ? `${exchange}:${ticker}` : ticker;
+};
+
+// Profile/Financials/Technical Analysis degrade gracefully to a "No data"
+// placeholder when a symbol can't be resolved, but the price-chart widgets
+// (Advanced Chart, Baseline) silently fall back to an unrelated default
+// listing instead — so an unmapped suffix (some small/foreign ticker not in
+// FINNHUB_SUFFIX_TO_TRADINGVIEW_EXCHANGE) risks rendering a completely
+// different company's chart. Only render charts when we can confidently
+// resolve the symbol.
+export const canRenderTradingViewChart = (symbol: string): boolean => {
+    const upper = symbol.toUpperCase();
+    const dotIndex = upper.lastIndexOf('.');
+    if (dotIndex === -1) return true;
+    const suffix = upper.slice(dotIndex + 1);
+    return suffix in FINNHUB_SUFFIX_TO_TRADINGVIEW_EXCHANGE;
+};
+
 export const SYMBOL_INFO_WIDGET_CONFIG = (symbol: string) => ({
-    symbol: symbol.toUpperCase(),
+    symbol: toTradingViewSymbol(symbol),
     colorTheme: 'dark',
     isTransparent: true,
     locale: 'en',
@@ -182,7 +232,7 @@ export const SYMBOL_INFO_WIDGET_CONFIG = (symbol: string) => ({
 export const CANDLE_CHART_WIDGET_CONFIG = (symbol: string) => ({
     allow_symbol_change: false,
     calendar: false,
-    details: true,
+    details: false,
     hide_side_toolbar: true,
     hide_top_toolbar: false,
     hide_legend: false,
@@ -192,7 +242,7 @@ export const CANDLE_CHART_WIDGET_CONFIG = (symbol: string) => ({
     locale: 'en',
     save_image: false,
     style: 1,
-    symbol: symbol.toUpperCase(),
+    symbol: toTradingViewSymbol(symbol),
     theme: 'dark',
     timezone: 'Etc/UTC',
     backgroundColor: '#141414',
@@ -218,7 +268,7 @@ export const BASELINE_WIDGET_CONFIG = (symbol: string) => ({
     locale: 'en',
     save_image: false,
     style: 10,
-    symbol: symbol.toUpperCase(),
+    symbol: toTradingViewSymbol(symbol),
     theme: 'dark',
     timezone: 'Etc/UTC',
     backgroundColor: '#141414',
@@ -232,7 +282,7 @@ export const BASELINE_WIDGET_CONFIG = (symbol: string) => ({
 });
 
 export const TECHNICAL_ANALYSIS_WIDGET_CONFIG = (symbol: string) => ({
-    symbol: symbol.toUpperCase(),
+    symbol: toTradingViewSymbol(symbol),
     colorTheme: 'dark',
     isTransparent: 'true',
     locale: 'en',
@@ -243,7 +293,7 @@ export const TECHNICAL_ANALYSIS_WIDGET_CONFIG = (symbol: string) => ({
 });
 
 export const COMPANY_PROFILE_WIDGET_CONFIG = (symbol: string) => ({
-    symbol: symbol.toUpperCase(),
+    symbol: toTradingViewSymbol(symbol),
     colorTheme: 'dark',
     isTransparent: 'true',
     locale: 'en',
@@ -252,7 +302,7 @@ export const COMPANY_PROFILE_WIDGET_CONFIG = (symbol: string) => ({
 });
 
 export const COMPANY_FINANCIALS_WIDGET_CONFIG = (symbol: string) => ({
-    symbol: symbol.toUpperCase(),
+    symbol: toTradingViewSymbol(symbol),
     colorTheme: 'dark',
     isTransparent: 'true',
     locale: 'en',
