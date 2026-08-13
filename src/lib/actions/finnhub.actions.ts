@@ -4,22 +4,102 @@ import { POPULAR_STOCK_SYMBOLS } from '../../lib/constants';
 import { cache } from 'react';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
-const NEXT_PUBLIC_FINNHUB_API_KEY = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
+
+// The market-intelligence scan fans out dozens of calls (quotes, profiles,
+// financials across ~50 symbols) at once, which trips Finnhub's free-tier
+// rate limit. A small global concurrency gate + retry-on-429 keeps all of
+// those calls under the limit instead of erroring out individually.
+const MAX_CONCURRENT_REQUESTS = 5;
+let activeRequests = 0;
+const requestQueue: Array<() => void> = [];
+
+function acquireSlot(): Promise<void> {
+  if (activeRequests < MAX_CONCURRENT_REQUESTS) {
+    activeRequests++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => requestQueue.push(resolve));
+}
+
+function releaseSlot() {
+  const next = requestQueue.shift();
+  if (next) {
+    next();
+  } else {
+    activeRequests--;
+  }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchJSON<T>(url: string, revalidateSeconds?: number): Promise<T> {
   const options: RequestInit & { next?: { revalidate?: number } } = revalidateSeconds
     ? { cache: 'force-cache', next: { revalidate: revalidateSeconds } }
     : { cache: 'no-store' };
 
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Fetch failed ${res.status}: ${text}`);
+  await acquireSlot();
+  try {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const res = await fetch(url, options);
+      if (res.ok) return (await res.json()) as T;
+
+      if (res.status === 429 && attempt < maxAttempts - 1) {
+        const retryAfter = Number(res.headers.get('retry-after'));
+        await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 800 * (attempt + 1));
+        continue;
+      }
+
+      const text = await res.text().catch(() => '');
+      throw new Error(`Fetch failed ${res.status}: ${text}`);
+    }
+    throw new Error('Fetch failed: exhausted retries');
+  } finally {
+    releaseSlot();
   }
-  return (await res.json()) as T;
 }
 
 export { fetchJSON };
+
+function getToken(): string | null {
+  return process.env.FINNHUB_API_KEY || null;
+}
+
+export const getStockQuote = cache(async (symbol: string): Promise<QuoteData | null> => {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${token}`;
+    return await fetchJSON<QuoteData>(url, 30);
+  } catch (e) {
+    console.error('getStockQuote error:', symbol, e);
+    return null;
+  }
+});
+
+export const getStockProfile = cache(async (symbol: string): Promise<ProfileData | null> => {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(symbol.toUpperCase())}&token=${token}`;
+    return await fetchJSON<ProfileData>(url, 3600);
+  } catch (e) {
+    console.error('getStockProfile error:', symbol, e);
+    return null;
+  }
+});
+
+export const getStockFinancials = cache(async (symbol: string): Promise<FinancialsData | null> => {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const url = `${FINNHUB_BASE_URL}/stock/metric?symbol=${encodeURIComponent(symbol.toUpperCase())}&metric=all&token=${token}`;
+    return await fetchJSON<FinancialsData>(url, 3600);
+  } catch (e) {
+    console.error('getStockFinancials error:', symbol, e);
+    return null;
+  }
+});
 
 export async function getNews(symbols?: string[]): Promise<MarketNewsArticle[]> {
   try {
