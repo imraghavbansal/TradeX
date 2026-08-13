@@ -4,6 +4,7 @@ import {sendNewsSummaryEmail, sendWelcomeEmail} from "@/lib/nodemailer";
 import {getAllUsersForNewsEmail} from "@/lib/actions/user.actions";
 import { getWatchlistSymbolsByEmail } from "@/lib/actions/watchlist.actions";
 import { getNews } from "@/lib/actions/finnhub.actions";
+import { refreshMarketQuotes, refreshMarketProfiles } from "@/lib/actions/market-intelligence.actions";
 import { getFormattedTodayDate } from "@/lib/utils";
 
 
@@ -118,5 +119,32 @@ export const sendDailyNewsSummary = inngest.createFunction(
             })
 
         return { success: true, message: 'Daily news summary emails sent successfully' }
+    }
+)
+
+// Market Pulse / Unusual Activity scan the whole tracked universe (~50
+// symbols) on every read. Doing that fan-out live from Finnhub on every page
+// view would mean call volume scales with concurrent traffic instead of a
+// fixed interval — these crons are the only things that actually call
+// Finnhub for that scan; everything user-facing just reads what they last
+// wrote (see market-intelligence.actions.ts). Split into two cadences:
+// prices move constantly, but company name / 52-week range barely change,
+// so refreshing those every 2 minutes too would triple the call volume for
+// no benefit.
+export const refreshMarketQuotesCron = inngest.createFunction(
+    { id: 'refresh-market-quotes' },
+    { cron: '*/2 * * * *' },
+    async ({ step }) => {
+        const result = await step.run('refresh-quotes', refreshMarketQuotes);
+        return { success: true, ...result };
+    }
+)
+
+export const refreshMarketProfilesCron = inngest.createFunction(
+    { id: 'refresh-market-profiles' },
+    { cron: '0 * * * *' },
+    async ({ step }) => {
+        const result = await step.run('refresh-profiles', refreshMarketProfiles);
+        return { success: true, ...result };
     }
 )
