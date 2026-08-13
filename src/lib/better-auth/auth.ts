@@ -14,10 +14,20 @@ async function initAuth() {
 
     if (!db) throw new Error('Database connection is not established');
 
+    // No fallback here on purpose: a silently-applied default secret would be
+    // baked into this (public) repo's source, letting anyone forge a session
+    // for any user on a deployment that forgot to set the real one.
+    if (!process.env.BETTER_AUTH_SECRET) {
+        throw new Error('Please define the BETTER_AUTH_SECRET environment variable');
+    }
+    if (!process.env.BETTER_AUTH_URL) {
+        throw new Error('Please define the BETTER_AUTH_URL environment variable');
+    }
+
     return betterAuth({
         database: mongodbAdapter(db),
-        secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-key-min-32-characters-long-12345',
-        baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+        secret: process.env.BETTER_AUTH_SECRET,
+        baseURL: process.env.BETTER_AUTH_URL,
         emailAndPassword: {
             enabled: true,
             disableSignUp: false,
