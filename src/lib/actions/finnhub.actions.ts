@@ -181,9 +181,20 @@ export const searchStocks = cache(async (query?: string): Promise<StockWithWatch
   try {
     const token = process.env.FINNHUB_API_KEY;
     if (!token) {
-      // If no token, log and return empty to avoid throwing per requirements
-      console.error('Error in stock search:', new Error('FINNHUB API key is not configured'));
-      return [];
+      // No Finnhub key — return a small fallback of popular symbols so search UI remains usable in demo mode
+      try {
+        const mapped = (POPULAR_STOCK_SYMBOLS || []).slice(0, 20).map((sym) => ({
+          symbol: sym.toUpperCase(),
+          name: sym.toUpperCase(),
+          exchange: 'US',
+          type: 'Stock',
+          isInWatchlist: false,
+        }));
+        return mapped;
+      } catch (e) {
+        console.error('Error constructing fallback popular symbols', e);
+        return [];
+      }
     }
 
     const trimmed = typeof query === 'string' ? query.trim() : '';
@@ -191,8 +202,8 @@ export const searchStocks = cache(async (query?: string): Promise<StockWithWatch
     let results: FinnhubSearchResult[] = [];
 
     if (!trimmed) {
-      // Fetch top 10 popular symbols' profiles
-      const top = POPULAR_STOCK_SYMBOLS.slice(0, 10);
+      // Fetch top 20 popular symbols' profiles
+      const top = POPULAR_STOCK_SYMBOLS.slice(0, 20);
       const profiles = await Promise.all(
         top.map(async (sym) => {
           try {
@@ -249,7 +260,7 @@ export const searchStocks = cache(async (query?: string): Promise<StockWithWatch
         };
         return item;
       })
-      .slice(0, 15);
+      .slice(0, 20);
 
     return mapped;
   } catch (err) {

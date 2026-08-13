@@ -4,7 +4,6 @@ declare global {
             MONGODB_URI?: string;
             BETTER_AUTH_SECRET?: string;
             BETTER_AUTH_URL?: string;
-            NEXT_PUBLIC_FINNHUB_API_KEY?: string;
             FINNHUB_API_KEY?: string;
             GEMINI_API_KEY?: string;
             NODEMAILER_EMAIL?: string;
