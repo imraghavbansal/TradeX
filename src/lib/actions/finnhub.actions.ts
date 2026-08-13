@@ -6,9 +6,11 @@ import { cache } from 'react';
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 
 // The market-intelligence scan fans out dozens of calls (quotes, profiles,
-// financials across ~50 symbols) at once, which trips Finnhub's free-tier
-// rate limit. A small global concurrency gate + retry-on-429 keeps all of
-// those calls under the limit instead of erroring out individually.
+// financials across ~50 symbols) at once. A concurrency cap alone doesn't
+// prevent tripping Finnhub's free-tier 60/req-min limit — 5-at-a-time still
+// clears 150 calls in well under a minute since each call is fast. What
+// actually keeps call volume under the limit is pacing *request starts*
+// against a rolling 60s window, not just capping how many are in flight.
 const MAX_CONCURRENT_REQUESTS = 5;
 let activeRequests = 0;
 const requestQueue: Array<() => void> = [];
@@ -32,6 +34,25 @@ function releaseSlot() {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Stay comfortably under Finnhub's 60/min free-tier cap so normal traffic
+// jitter and retries don't push us over it.
+const RATE_LIMIT_PER_MINUTE = 50;
+const requestTimestamps: number[] = [];
+
+async function waitForRateLimitSlot(): Promise<void> {
+  for (;;) {
+    const now = Date.now();
+    while (requestTimestamps.length && now - requestTimestamps[0] > 60_000) {
+      requestTimestamps.shift();
+    }
+    if (requestTimestamps.length < RATE_LIMIT_PER_MINUTE) {
+      requestTimestamps.push(now);
+      return;
+    }
+    await sleep(60_000 - (now - requestTimestamps[0]) + 25);
+  }
+}
+
 async function fetchJSON<T>(url: string, revalidateSeconds?: number): Promise<T> {
   const options: RequestInit & { next?: { revalidate?: number } } = revalidateSeconds
     ? { cache: 'force-cache', next: { revalidate: revalidateSeconds } }
@@ -41,6 +62,7 @@ async function fetchJSON<T>(url: string, revalidateSeconds?: number): Promise<T>
   try {
     const maxAttempts = 3;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await waitForRateLimitSlot();
       const res = await fetch(url, options);
       if (res.ok) return (await res.json()) as T;
 
