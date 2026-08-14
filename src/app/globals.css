@@ -112,15 +112,26 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-/* === CUSTOM COLOR THEME === */
+/* === CUSTOM COLOR THEME ===
+   These redefine Tailwind's own gray-* scale so the whole app (which is built
+   almost entirely out of gray-900..gray-100 utilities) can be re-themed for
+   light/dark by overriding a handful of CSS variables here, instead of adding
+   dark: variants to every single class. @theme registers the palette and sets
+   its light-mode (default) values; .dark overrides them below. */
 @theme {
-  /* Extended Gray Scale */
-  --color-gray-900: #050505;
-  --color-gray-800: #141414;
-  --color-gray-700: #212328;
-  --color-gray-600: #30333A;
-  --color-gray-500: #9095A1;
-  --color-gray-400: #CCDADC;
+  --color-gray-900: #F7F3EA;
+  --color-gray-800: #FFFFFF;
+  --color-gray-700: #F1EBDC;
+  --color-gray-600: #E4DCC8;
+  --color-gray-500: #8A8172;
+  --color-gray-400: #39352C;
+  --color-gray-300: #55503F;
+  --color-gray-100: #211E17;
+  /* TradingView's own widgets (Top Stories, etc) render a near-true-black
+     internal background in dark mode that our backgroundColor override can't
+     fully reach — this matches that instead of our lighter card gray-800, so
+     widgets look consistent with each other once loaded. */
+  --tv-bg: #FFFFFF;
 
   /* Vibrant Colors */
   --color-blue-600: #5862FF;
@@ -132,12 +143,36 @@
   --color-purple-500: #D13BFF;
 }
 
+:root:not(.dark) {
+  --color-gray-900: #F7F3EA;
+  --color-gray-800: #FFFFFF;
+  --color-gray-700: #F1EBDC;
+  --color-gray-600: #E4DCC8;
+  --color-gray-500: #8A8172;
+  --color-gray-400: #39352C;
+  --color-gray-300: #55503F;
+  --color-gray-100: #211E17;
+  --tv-bg: #FFFFFF;
+}
+
+.dark {
+  --color-gray-900: #07080C;
+  --color-gray-800: #15161D;
+  --color-gray-700: #212328;
+  --color-gray-600: #30333A;
+  --color-gray-500: #9095A1;
+  --color-gray-400: #CCDADC;
+  --color-gray-300: #B4C2C4;
+  --color-gray-100: #F3F4F6;
+  --tv-bg: #0A0A0B;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-gray-900 text-foreground;
+    @apply bg-gray-900 text-foreground transition-colors duration-300;
   }
 }
 
@@ -249,6 +284,9 @@
   }
   .nav-list {
     @apply flex flex-col sm:flex-row p-2 gap-3 sm:gap-10 font-medium;
+  }
+  .theme-toggle {
+    @apply w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:text-yellow-500 hover:bg-gray-700/60 transition-all duration-200 cursor-pointer active:scale-90;
   }
   .stock-details-container {
     @apply w-full grid-cols-1 gap-6 xl:grid-cols-3 space-y-6 sm:space-y-8;

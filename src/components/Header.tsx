@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import NavItems from './NavItems'
 import UserDropdown from './UserDropdown'
+import ThemeToggle from './ThemeToggle'
 
 const Header = ({user}:{user: User}) => {
   return (
@@ -10,10 +11,13 @@ const Header = ({user}:{user: User}) => {
         <Link href="/">
         <Image src="/assets/icons/logo.svg" alt="TradeX logo" width={140} height={32} className="h-8 w-auto cursor-pointer" />
         </Link>
-        <nav className="hidden sm:block"> 
+        <nav className="hidden sm:block">
           <NavItems />
         </nav>
-        <UserDropdown user={user}/>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <UserDropdown user={user}/>
+        </div>
       </div>
     </header>
   )
