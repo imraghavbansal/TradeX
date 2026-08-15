@@ -25,9 +25,7 @@ const NavItems = () => {
                 )
 
                 return <li key={href}>
-                    <Link href={href} className={`hover:text-yellow-500 transition-colors ${
-                        isActive(href) ? 'text-gray-100' : ''
-                    }`}>
+                    <Link href={href} className={`nav-link ${isActive(href) ? 'nav-link-active' : ''}`}>
                         {label}
                     </Link>
                 </li>
