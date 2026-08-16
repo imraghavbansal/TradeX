@@ -225,6 +225,9 @@
   .form-input {
     @apply h-12 px-3 py-3 text-gray-100 text-base placeholder:text-gray-500 border-gray-600 bg-gray-800 rounded-lg focus:!border-yellow-500 focus:ring-0;
   }
+  .password-toggle {
+    @apply absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-yellow-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
   .select-trigger {
     @apply w-full !h-12 px-3 py-3 text-base border-gray-600 bg-gray-800 text-gray-100 rounded-lg focus:!border-yellow-500 focus:ring-0;
   }
@@ -312,7 +315,16 @@
     @apply w-full;
   }
   .stock-details-container {
-    @apply w-full grid-cols-1 gap-6 xl:grid-cols-3 space-y-6 sm:space-y-8;
+    @apply w-full grid-cols-1 gap-6 xl:grid-cols-3 items-start mt-6;
+  }
+  .stock-header {
+    @apply w-full flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6;
+  }
+  .stock-header-quote {
+    @apply flex-1 min-w-0;
+  }
+  .stock-header-action {
+    @apply w-full sm:w-56 shrink-0;
   }
   .watchlist-btn {
     @apply bg-yellow-500 text-base hover:bg-yellow-400 text-gray-900 w-full rounded h-11 font-semibold cursor-pointer transition-all duration-200 active:scale-[0.98];
@@ -325,6 +337,10 @@
   }
   .watchlist-empty {
     @apply flex flex-col items-center justify-center text-center;
+  }
+  .chart-unavailable {
+    @apply w-full rounded-lg border border-gray-700 bg-gray-800 text-gray-400 text-sm flex items-center justify-center text-center p-10;
+    min-height: 300px;
   }
   .watchlist-star {
     @apply h-16 w-16 text-gray-500 mb-4;
@@ -436,6 +452,75 @@
   }
   .alert-delete-btn {
     @apply text-gray-400 rounded-full hover:bg-red-600/15 bg-transparent cursor-pointer transition-colors;
+  }
+
+  /* Insights page */
+  .insights-page-title {
+    @apply text-2xl md:text-3xl font-bold text-gray-100;
+  }
+  .insights-page-subtitle {
+    @apply text-gray-500 mt-1;
+  }
+
+  /* Market Pulse */
+  .market-pulse {
+    @apply w-full bg-gray-800 border border-gray-600 rounded-xl p-6 flex flex-col gap-5;
+  }
+  .market-pulse-header {
+    @apply flex items-start justify-between flex-wrap gap-3;
+  }
+  .market-pulse-title {
+    @apply text-xl font-bold text-gray-100;
+  }
+  .market-pulse-subtitle {
+    @apply text-sm text-gray-500 mt-0.5;
+  }
+  .market-pulse-benchmark {
+    @apply text-sm font-semibold px-3 py-1.5 rounded-full bg-gray-900 border border-gray-700;
+  }
+  .market-pulse-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+  }
+  .market-pulse-column-title {
+    @apply flex items-center gap-2 text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wide;
+  }
+  .market-pulse-empty {
+    @apply text-gray-500 text-sm py-2;
+  }
+  .market-pulse-callout {
+    @apply block bg-gradient-to-r from-gray-900 to-gray-900/60 border border-yellow-500/20 rounded-xl p-5 hover:border-yellow-500/50 transition-colors;
+  }
+  .market-pulse-callout-label {
+    @apply block text-yellow-500 font-semibold text-sm mb-1.5;
+  }
+  .market-pulse-callout-text {
+    @apply text-gray-300 text-sm leading-relaxed;
+  }
+
+  /* Mover rows (Market Pulse gainers/losers) */
+  .mover-row {
+    @apply grid grid-cols-[1.5rem_1fr_auto_auto_1rem] items-center gap-3 py-2.5 px-2 rounded-lg transition-colors hover:bg-gray-700/50;
+  }
+  .mover-rank {
+    @apply text-xs text-gray-500 font-mono text-center;
+  }
+  .mover-identity {
+    @apply flex flex-col min-w-0;
+  }
+  .mover-symbol {
+    @apply font-bold text-gray-100 text-sm;
+  }
+  .mover-company {
+    @apply text-xs text-gray-500 truncate;
+  }
+  .mover-price {
+    @apply text-gray-300 text-sm tabular-nums;
+  }
+  .mover-change {
+    @apply text-sm font-semibold tabular-nums text-right min-w-16;
+  }
+  .mover-chevron {
+    @apply text-gray-600 group-hover:text-yellow-500 transition-colors;
   }
 
   .skeleton-block {
