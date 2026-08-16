@@ -1,4 +1,5 @@
 import MarketPulse from '@/components/MarketPulse';
+import UnusualActivity from '@/components/UnusualActivity';
 
 const InsightsPage = () => {
     return (
@@ -10,6 +11,7 @@ const InsightsPage = () => {
                 </p>
             </div>
             <MarketPulse />
+            <UnusualActivity />
         </div>
     );
 };
