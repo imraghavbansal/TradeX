@@ -1,5 +1,10 @@
 import TradingViewWidget from '@/components/TradingViewWidget';
+import WatchlistButton from '@/components/WatchlistButton';
 import WhyIsItMoving from '@/components/WhyIsItMoving';
+import { auth } from '@/lib/better-auth/auth';
+import { headers } from 'next/headers';
+import { getStockProfile } from '@/lib/actions/finnhub.actions';
+import { getWatchlistSymbolsByEmail } from '@/lib/actions/watchlist.actions';
 import {
     SYMBOL_INFO_WIDGET_CONFIG,
     CANDLE_CHART_WIDGET_CONFIG,
@@ -16,7 +21,23 @@ const StockDetails = async ({ params }: StockDetailsPageProps) => {
     const { symbol } = await params;
     const upperSymbol = symbol.toUpperCase();
 
+    const [profile, session] = await Promise.all([
+        getStockProfile(upperSymbol),
+        auth.api.getSession({ headers: await headers() }).catch(() => null),
+    ]);
+
+    const companyName = profile?.name || upperSymbol;
     const chartAvailable = canRenderTradingViewChart(upperSymbol);
+
+    let isInWatchlist = false;
+    if (session?.user?.email) {
+        try {
+            const symbols = await getWatchlistSymbolsByEmail(session.user.email);
+            isInWatchlist = symbols.map((s) => s.toUpperCase()).includes(upperSymbol);
+        } catch (e) {
+            console.warn('Failed to resolve watchlist status for stock details page:', e);
+        }
+    }
 
     return (
         <div className="flex flex-col min-h-screen home-wrapper">
@@ -26,6 +47,13 @@ const StockDetails = async ({ params }: StockDetailsPageProps) => {
                         scriptUrl={`${SCRIPT_URL}symbol-info.js`}
                         config={SYMBOL_INFO_WIDGET_CONFIG(upperSymbol)}
                         height={170}
+                    />
+                </div>
+                <div className="stock-header-action">
+                    <WatchlistButton
+                        symbol={upperSymbol}
+                        company={companyName}
+                        isInWatchlist={isInWatchlist}
                     />
                 </div>
             </div>
