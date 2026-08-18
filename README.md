@@ -11,7 +11,7 @@ cp env.example .env.local   # then fill in the real values (see below)
 
 ### Running the app
 
-The app needs **three services running together**: the Next.js dev server, a local MongoDB instance, and the Inngest scheduler (for price alerts, market-data refresh, and welcome/news emails).
+MongoDB is a real, always-on Atlas cluster (see `MONGODB_URI` in `.env.local`) — local dev doesn't depend on a local database process anymore. The app needs **two services running together**: the Next.js dev server and the Inngest scheduler (for price alerts, market-data refresh, and welcome/news emails).
 
 **Easiest — one command, one terminal:**
 
@@ -19,28 +19,26 @@ The app needs **three services running together**: the Next.js dev server, a loc
 npm run dev:all
 ```
 
-This starts MongoDB, `next dev`, and the Inngest dev server together (via `concurrently`), with color-coded, prefixed output so you can tell which service logged what. Press `Ctrl+C` once to stop all three cleanly — no manual cleanup needed.
+This starts `next dev` and the Inngest dev server together (via `concurrently`), with color-coded, prefixed output. Press `Ctrl+C` once to stop both cleanly — no manual cleanup needed.
 
-**Manual — three separate terminals**, if you want to run/restart pieces independently:
+**Manual — two separate terminals**, if you want to run/restart pieces independently:
 
 ```bash
-npm run db:local     # terminal 1 — wait for "Local MongoDB running..."
-npx inngest-cli dev -u http://localhost:3000/api/inngest   # terminal 2
-npm run dev          # terminal 3
+npx inngest-cli dev -u http://localhost:3000/api/inngest   # terminal 1
+npm run dev                                                 # terminal 2
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
 ### Troubleshooting
 
-- **Sign-in/sign-up/watchlist/alerts failing with a connection error** → MongoDB isn't running. Run `npm run db:local` (or `npm run dev:all`).
+- **Sign-in/sign-up/watchlist/alerts failing with a connection error** → the Atlas cluster is unreachable (paused from inactivity on the free tier, network access misconfigured, or the connection string is stale). Check [cloud.mongodb.com](https://cloud.mongodb.com) → the cluster is running, and Network Access allows `0.0.0.0/0`.
 - **Alerts never arrive by email, even though creating them works** → Inngest isn't connected. It's what actually checks alerts on a schedule and sends the email; without it, alerts just sit there. Run `inngest-cli dev -u http://localhost:3000/api/inngest` (or `npm run dev:all`).
-- **`db:local` fails with a `DBPathInUse` / lock file error** → a previous session didn't shut down cleanly. Close any terminals still running the app, then delete `.local-mongo-data/mongod.lock` and try again. Your data isn't affected — this only clears a stale lock marker.
-- **Local data persists** between restarts in `.local-mongo-data/` — nothing resets just because you closed the project.
+- **Want an isolated throwaway local database instead of touching real data** → `npm run db:local` still works (spins up an in-memory MongoDB persisted to `.local-mongo-data/`); swap `MONGODB_URI` in `.env.local` to point at it (see the comments in that file). If it fails with a `DBPathInUse` error, delete `.local-mongo-data/mongod.lock` and retry — your data isn't affected, that only clears a stale lock marker.
 
 ### Environment variables
 
-See `env.example` for the full list with descriptions (Finnhub, MongoDB, Better Auth, Gemini, Nodemailer, site URL). For local dev, `MONGODB_URI` should point at `mongodb://127.0.0.1:27017/stockdb` to match `db:local` — swap in a real MongoDB Atlas connection string only when you're ready to use a real cloud database.
+See `env.example` for the full list with descriptions (Finnhub, MongoDB, Better Auth, Gemini, Nodemailer, site URL). `MONGODB_URI` should be a real MongoDB Atlas connection string, with Network Access set to allow connections from anywhere (`0.0.0.0/0`) — required both for local dev reliability and because Vercel's serverless functions have no fixed IP.
 
 ## Deploy on Vercel
 

@@ -11,7 +11,7 @@
     "lint": "eslint",
     "test:db": "node scripts/test-db.mjs",
     "db:local": "node scripts/local-db.mjs",
-    "dev:all": "concurrently -n MONGO,NEXT,INNGEST -c green,blue,magenta -k \"node scripts/local-db.mjs\" \"next dev\" \"inngest-cli dev -u http://localhost:3000/api/inngest\""
+    "dev:all": "concurrently -n NEXT,INNGEST -c blue,magenta -k \"next dev\" \"inngest-cli dev -u http://localhost:3000/api/inngest\""
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",
