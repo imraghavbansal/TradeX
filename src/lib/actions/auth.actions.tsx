@@ -6,6 +6,7 @@ import {headers} from "next/headers";
 export const signUpWithEmail = async ({email, password, fullName, country, investmentGoals, riskTolerance, preferredIndustry}: SignUpFormData) => {
     try {
         const response = await auth.api.signUpEmail({
+            headers: await headers(),
             body: {
                 email: email,
                 password: password,
@@ -34,7 +35,8 @@ export const signUpWithEmail = async ({email, password, fullName, country, inves
         return { success: true, data: response };
 } catch (error) {
         console.error("Sign Up Error (Server Action):", error);
-        return { success: false, error: 'Sign up failed. Please try again.' };
+        const message = error instanceof Error ? error.message : 'Sign up failed. Please try again.';
+        return { success: false, error: message };
     }
 }
 
@@ -42,6 +44,7 @@ export const signUpWithEmail = async ({email, password, fullName, country, inves
 export const signInWithEmail = async ({email, password}: SignInFormData) => {
     try {
         const response = await auth.api.signInEmail({
+            headers: await headers(),
             body: {
                 email: email,
                 password: password,
@@ -50,7 +53,13 @@ export const signInWithEmail = async ({email, password}: SignInFormData) => {
         return { success: true, data: response };
 } catch (error) {
         console.error("Sign In Error (Server Action):", error);
-        return { success: false, error: 'Sign in failed. Please try again.' };
+        // Surface the real reason (still safe to show — better-auth's own
+        // errors are user-facing messages like "Invalid email or password",
+        // not stack traces) instead of a single generic string that made
+        // every failure mode — wrong password, DB hiccup, cookie issue —
+        // look identical and undebuggable from the outside.
+        const message = error instanceof Error ? error.message : 'Sign in failed. Please try again.';
+        return { success: false, error: message };
     }
 }
 
