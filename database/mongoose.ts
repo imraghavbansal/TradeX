@@ -32,6 +32,16 @@ export const connectToDatabase = async () => {
     }
     catch (error) {
         cached.promise = null;
+        // The single most common local-dev failure: MONGODB_URI points at the
+        // local mongodb-memory-server instance (see scripts/local-db.mjs) but
+        // it isn't running. Point straight at the fix instead of surfacing a
+        // raw MongooseServerSelectionError.
+        if (/127\.0\.0\.1|localhost/.test(MONGODB_URI)) {
+            throw new Error(
+                'Could not reach the local MongoDB instance. Run `npm run db:local` in a separate terminal ' +
+                '(or `npm run dev:all` to start everything together) before using the app.'
+            );
+        }
         throw error;
     }
     console.log(`Connected to database ${process.env.NODE_ENV} - ${MONGODB_URI}`);
