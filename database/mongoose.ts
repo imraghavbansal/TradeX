@@ -21,12 +21,20 @@ export const connectToDatabase = async () => {
     if (cached.conn) return cached.conn;
 
     if (!cached.promise) {
+        // 5s was too tight for a serverless cold start: a fresh Vercel function
+        // instance establishing its first-ever connection to Atlas (TLS +
+        // auth + server selection) can easily exceed that, causing sign-in to
+        // fail with a generic error that looks identical to a wrong password.
+        // Capped at 8s rather than higher, since Vercel's Hobby plan kills the
+        // whole function at 10s regardless — going higher would just trade a
+        // graceful in-app error for an uglier platform-level timeout, leaving
+        // ~2s of headroom for the rest of the request to complete.
         cached.promise = mongoose.connect(MONGODB_URI, {
             bufferCommands: false,
-            serverSelectionTimeoutMS: 5000,
-            connectTimeoutMS: 5000,
+            serverSelectionTimeoutMS: 8000,
+            connectTimeoutMS: 8000,
         });
-    }  
+    }
     try {
         cached.conn = await cached.promise;
     }
