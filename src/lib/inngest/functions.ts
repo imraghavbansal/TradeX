@@ -1,11 +1,12 @@
 import {inngest} from "@/lib/inngest/client";
 import {NEWS_SUMMARY_EMAIL_PROMPT, PERSONALIZED_WELCOME_EMAIL_PROMPT} from "@/lib/inngest/prompts";
-import {sendNewsSummaryEmail, sendWelcomeEmail} from "@/lib/nodemailer";
+import {sendNewsSummaryEmail, sendWelcomeEmail, sendStockAlertUpperEmail, sendStockAlertLowerEmail} from "@/lib/nodemailer";
 import {getAllUsersForNewsEmail} from "@/lib/actions/user.actions";
 import { getWatchlistSymbolsByEmail } from "@/lib/actions/watchlist.actions";
-import { getNews } from "@/lib/actions/finnhub.actions";
+import { getNews, getStockQuote } from "@/lib/actions/finnhub.actions";
+import { getAllActiveAlerts, deleteAlertById } from "@/lib/actions/alert.actions";
 import { refreshMarketQuotes, refreshMarketProfiles } from "@/lib/actions/market-intelligence.actions";
-import { getFormattedTodayDate } from "@/lib/utils";
+import { getFormattedTodayDate, formatPrice } from "@/lib/utils";
 
 
 export const sendSignUpEmail = inngest.createFunction(
@@ -63,7 +64,6 @@ export const sendDailyNewsSummary = inngest.createFunction(
         const results = await step.run('fetch-user-news', async () => {
             const perUser: Array<{ user: UserForNewsEmail; articles: MarketNewsArticle[] }> = [];
             for (const user of users as UserForNewsEmail[]) {
-                const typedUser = user as UserForNewsEmail;
                 try {
                     const symbols = await getWatchlistSymbolsByEmail(user.email);
                     let articles = await getNews(symbols);
@@ -101,7 +101,7 @@ export const sendDailyNewsSummary = inngest.createFunction(
                     const newsContent = (part && 'text' in part ? part.text : null) || 'No market news.'
 
                     userNewsSummaries.push({ user, newsContent });
-                } catch (e) {
+                } catch {
                     console.error('Failed to summarize news for : ', user.email);
                     userNewsSummaries.push({ user, newsContent: null });
                 }
@@ -119,6 +119,84 @@ export const sendDailyNewsSummary = inngest.createFunction(
             })
 
         return { success: true, message: 'Daily news summary emails sent successfully' }
+    }
+)
+
+export const checkPriceAlerts = inngest.createFunction(
+    { id: 'check-price-alerts' },
+    // Every minute rather than every 5 — this only spends one Finnhub call per
+    // *unique* symbol across all active alerts (not per alert), so even a
+    // couple dozen distinct watched symbols stays well inside the 50/min
+    // budget shared with the market-snapshot crons.
+    { cron: '* * * * *' },
+    async ({ step }) => {
+        const alerts = await step.run('get-active-alerts', getAllActiveAlerts);
+
+        if (!alerts || alerts.length === 0) {
+            return { success: true, message: 'No active alerts to check' };
+        }
+
+        const uniqueSymbols = Array.from(new Set(alerts.map((a) => a.symbol)));
+
+        const quotes = await step.run('fetch-quotes', async () => {
+            const entries = await Promise.all(
+                uniqueSymbols.map(async (symbol) => [symbol, await getStockQuote(symbol)] as const)
+            );
+            return Object.fromEntries(entries);
+        });
+
+        const triggered = await step.run('evaluate-alerts', async () => {
+            const fired: typeof alerts = [];
+            for (const alert of alerts) {
+                const quote = quotes[alert.symbol];
+                const currentPrice = quote?.c;
+                if (typeof currentPrice !== 'number') continue;
+
+                const isTriggered =
+                    alert.alertType === 'upper' ? currentPrice > alert.threshold : currentPrice < alert.threshold;
+
+                if (isTriggered) fired.push(alert);
+            }
+            return fired;
+        });
+
+        if (triggered.length === 0) {
+            return { success: true, message: 'No alerts triggered', checked: alerts.length };
+        }
+
+        await step.run('send-alert-emails-and-cleanup', async () => {
+            await Promise.all(
+                triggered.map(async (alert) => {
+                    const quote = quotes[alert.symbol];
+                    const emailData = {
+                        email: alert.email,
+                        symbol: alert.symbol,
+                        company: alert.company,
+                        currentPrice: formatPrice(quote?.c ?? alert.threshold),
+                        targetPrice: formatPrice(alert.threshold),
+                        timestamp: new Date().toLocaleString('en-US'),
+                    };
+
+                    try {
+                        if (alert.alertType === 'upper') {
+                            await sendStockAlertUpperEmail(emailData);
+                        } else {
+                            await sendStockAlertLowerEmail(emailData);
+                        }
+                    } catch (e) {
+                        // Leave the alert in place on a failed send — it gets re-evaluated
+                        // (and re-sent) on the next 5-minute tick instead of silently
+                        // vanishing on a transient SMTP/network failure.
+                        console.error('Failed to send alert email for', alert.symbol, e);
+                        return;
+                    }
+
+                    await deleteAlertById(alert.id);
+                })
+            );
+        });
+
+        return { success: true, message: 'Triggered alerts sent', triggeredCount: triggered.length };
     }
 )
 

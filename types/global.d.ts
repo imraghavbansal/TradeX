@@ -8,6 +8,7 @@ declare global {
             GEMINI_API_KEY?: string;
             NODEMAILER_EMAIL?: string;
             NODEMAILER_PASSWORD?: string;
+            NEXT_PUBLIC_SITE_URL?: string;
         }
     }
 
