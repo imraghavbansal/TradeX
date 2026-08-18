@@ -85,9 +85,20 @@ type SnapshotDoc = {
     fiftyTwoWeekLow: number | null;
 };
 
+// Unlike the two writers above (which are only ever invoked by the Inngest
+// crons, where a hard failure is the right behavior so the run shows as
+// failed), this is read by user-facing pages/build-time prerendering — a
+// transient DB outage here should degrade to an empty result (readers
+// already render "no data yet" gracefully) rather than 500 the page or, on
+// Vercel, fail the production build outright.
 const getSnapshot = cache(async (): Promise<SnapshotDoc[]> => {
-    await connectToDatabase();
-    return MarketSnapshotModel.find().lean();
+    try {
+        await connectToDatabase();
+        return await MarketSnapshotModel.find().lean();
+    } catch (e) {
+        console.error('getSnapshot: failed to read market snapshot, degrading to empty', e);
+        return [];
+    }
 });
 
 export type MarketMover = {
