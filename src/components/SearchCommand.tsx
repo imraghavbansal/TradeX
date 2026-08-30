@@ -29,16 +29,27 @@ export default function SearchCommand({ renderAs = 'button', label = 'Add stock'
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
-  // Client-side wrapper to call our API route which invokes the server-side search
+  // Client-side wrapper to call our API route which invokes the server-side search.
+  // A single failed attempt used to silently resolve to [] — indistinguishable from
+  // a genuine "no results" — even though the underlying cause is almost always
+  // transient (the search route shares Finnhub's rate-limit budget with the
+  // background market-data crons, so an occasional slow/failed response is
+  // expected, not exceptional). A couple of quick retries absorbs that instead
+  // of surfacing a false "no stocks available" to the user.
   async function fetchStocks(q: string): Promise<StockWithWatchlistStatus[]> {
-    try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q || '')}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data as StockWithWatchlistStatus[];
-    } catch {
-      return [];
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q || '')}`);
+        if (res.ok) return (await res.json()) as StockWithWatchlistStatus[];
+      } catch {
+        // fall through to retry
+      }
+      if (attempt < maxAttempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      }
     }
+    return [];
   }
 
   const handleSearch = async () => {
